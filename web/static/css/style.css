@@ -1,0 +1,89 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #app { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1e1e1e; color: #d4d4d4; }
+
+#app { display: flex; }
+
+/* Sidebar */
+#sidebar { width: 240px; min-width: 180px; background: #252526; display: flex; flex-direction: column; border-right: 1px solid #3c3c3c; }
+#sidebar-header { padding: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; }
+#sidebar-header .logo { font-weight: 700; font-size: 14px; color: #ccc; }
+#btn-refresh { background: none; border: none; color: #888; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+#btn-refresh:hover { background: #3c3c3c; color: #fff; }
+
+/* Workspace bar */
+#workspace-bar { padding: 4px 8px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #3c3c3c; font-size: 11px; }
+#workspace-bar .ws-path { flex: 1; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+#workspace-bar .ws-path:hover { color: #ccc; }
+#btn-open-folder { background: none; border: none; color: #888; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 3px; }
+#btn-open-folder:hover { background: #3c3c3c; color: #fff; }
+
+/* Folder dialog */
+#folder-dialog { padding: 6px 8px; display: flex; gap: 4px; align-items: center; border-bottom: 1px solid #3c3c3c; background: #333; }
+#folder-input { flex: 1; background: #1e1e1e; border: 1px solid #555; color: #d4d4d4; padding: 3px 6px; font-size: 12px; border-radius: 3px; font-family: inherit; }
+#folder-input:focus { outline: none; border-color: #007acc; }
+#btn-folder-ok { background: #007acc; color: #fff; border: none; padding: 3px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+#btn-folder-ok:hover { background: #0098ff; }
+#btn-folder-cancel { background: none; border: none; color: #888; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+
+/* File tree */
+#filetree-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+#filetree-header { padding: 8px 12px 4px; font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.5px; }
+#filetree { flex: 1; overflow-y: auto; padding: 0 0 8px 0; font-size: 13px; }
+#sidebar-footer { padding: 8px 12px; border-top: 1px solid #3c3c3c; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }
+.dot-idle { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; }
+.dot-thinking { background: #ff9800; }
+
+/* File tree */
+.file-entry { padding: 3px 12px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.file-entry:hover { background: #2a2d2e; }
+.file-entry.active { background: #37373d; }
+.file-entry .icon { font-size: 14px; width: 18px; text-align: center; }
+.file-entry.dir { color: #d4d4d4; }
+.file-entry.file { color: #ccc; }
+.file-entry .name { overflow: hidden; text-overflow: ellipsis; }
+
+/* Main area */
+#main { flex: 1; display: flex; min-width: 0; }
+
+/* Editor */
+#editor-panel { flex: 1; display: flex; flex-direction: column; min-width: 200px; }
+#editor-tabs { background: #2d2d2d; height: 35px; display: flex; align-items: center; padding: 0 8px; gap: 2px; overflow-x: auto; }
+.editor-tab { padding: 4px 12px; background: #2d2d2d; font-size: 12px; cursor: pointer; white-space: nowrap; border-right: 1px solid #1e1e1e; color: #999; }
+.editor-tab.active { background: #1e1e1e; color: #fff; }
+#editor-container { flex: 1; }
+
+/* Right panel */
+#right-panel { width: 380px; min-width: 280px; display: flex; flex-direction: column; border-left: 1px solid #3c3c3c; }
+
+/* Chat */
+#chat-panel { flex: 1; display: flex; flex-direction: column; border-bottom: 1px solid #3c3c3c; min-height: 200px; }
+#chat-header { padding: 8px 12px; background: #2d2d2d; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #888; }
+#chat-messages { flex: 1; overflow-y: auto; padding: 8px 12px; font-size: 13px; line-height: 1.5; }
+#chat-input-area { padding: 8px; border-top: 1px solid #3c3c3c; display: flex; gap: 6px; }
+#chat-input { flex: 1; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 6px 8px; border-radius: 4px; font-size: 13px; resize: none; font-family: inherit; }
+#chat-input:focus { outline: none; border-color: #007acc; }
+#btn-send { background: #007acc; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
+#btn-send:hover { background: #0098ff; }
+#btn-send:disabled { background: #555; cursor: default; }
+.btn-stop { background: #c0392b; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.btn-stop:hover { background: #e74c3c; }
+
+/* Chat messages */
+.msg { margin-bottom: 10px; padding: 8px 10px; border-radius: 6px; }
+.msg.user { background: #2a3a4a; }
+.msg.assistant { background: #2d2d2d; }
+.msg .role { font-size: 11px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
+.msg.user .role { color: #569cd6; }
+.msg.assistant .role { color: #6a9955; }
+.msg pre { background: #1e1e1e; padding: 6px 8px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 4px 0; }
+.msg code { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 12px; }
+
+/* Terminal */
+#terminal-panel { height: 180px; display: flex; flex-direction: column; }
+#terminal-header { padding: 8px 12px; background: #2d2d2d; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #888; }
+#terminal-output { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 12px; background: #1e1e1e; white-space: pre-wrap; word-break: break-all; }
+.term-entry { margin-bottom: 2px; }
+.term-entry.info { color: #888; }
+.term-entry.tool { color: #569cd6; }
+.term-entry.output { color: #6a9955; }
+.term-entry.error { color: #f44747; }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeMind IDE</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <span class="logo">CodeMind</span>
+      <button id="btn-refresh" title="Refresh files">↻</button>
+    </div>
+    <div id="workspace-bar">
+      <span id="workspace-path" class="ws-path">Loading...</span>
+      <button id="btn-open-folder" title="Open Folder">📂</button>
+    </div>
+    <div id="folder-dialog" style="display:none">
+      <input id="folder-input" type="text" placeholder="Enter folder path...">
+      <button id="btn-folder-ok">Open</button>
+      <button id="btn-folder-cancel">✕</button>
+    </div>
+    <div id="filetree-section">
+      <div id="filetree-header">EXPLORER</div>
+      <div id="filetree"></div>
+    </div>
+    <div id="sidebar-footer">
+      <span id="status-dot" class="dot-idle"></span>
+      <span id="status-text">Ready</span>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div id="main">
+    <!-- Editor panel -->
+    <div id="editor-panel">
+      <div id="editor-tabs"></div>
+      <div id="editor-container"></div>
+    </div>
+
+    <!-- Right panel: Chat + Terminal -->
+    <div id="right-panel">
+      <div id="chat-panel">
+        <div id="chat-header">CHAT</div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-area">
+          <textarea id="chat-input" placeholder="Ask CodeMind..." rows="2"></textarea>
+          <button id="btn-send">Send</button>
+          <button id="btn-stop" style="display:none" class="btn-stop">Stop</button>
+        </div>
+      </div>
+      <div id="terminal-panel">
+        <div id="terminal-header">TERMINAL</div>
+        <div id="terminal-output"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+__pycache__/
+.venv/
+.env
+*.pyc
+.idea/
+.tasks/
+.task_outputs/
+.transcripts/
+.memory/
+.worktrees/
+dist/
+*.egg-info/
