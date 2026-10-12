@@ -4,8 +4,6 @@
 
 The previous foreground loop could keep requesting tools indefinitely. The Web stop flag only changed the display and did not reach the worker. CodeMind now controls the foreground run at each model/tool boundary, reports a termination reason, and preserves tool-use/result pairing when remaining tools are skipped.
 
-This is an engineering extension of the locally adapted learn-claude-code teaching baseline, not a novel learning algorithm. Upstream attribution is in THIRD_PARTY_NOTICES.md.
-
 ## Configuration
 
 ```python
@@ -65,4 +63,4 @@ These checks verify control behavior. They do not establish improvements in real
 
 ## Interview explanation
 
-Explain the actual bug, the cooperative cancellation boundary, tool-result protocol preservation, and why polling must be distinguished from unproductive repetition. Describe inherited tutorial foundations separately from these extensions. Long-term memory relevance selection remains unconnected and is not claimed as a completed end-to-end feature.
+Explain the actual bug, the cooperative cancellation boundary, tool-result protocol preservation, and why polling must be distinguished from unproductive repetition. Long-term memory relevance selection remains unconnected and is not claimed as a completed end-to-end feature.

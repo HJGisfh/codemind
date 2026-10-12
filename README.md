@@ -163,6 +163,6 @@ codemind/
 
 **为什么文件即数据库？** Task、Memory、Cron Jobs、Transcripts 全都是文件。没有数据库依赖，用任何文本编辑器就能查看 Agent 状态，重启不丢数据。
 
-## 致谢与许可
+## License
 
-Agent 基础实现参考并改编自 [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code)。来源与版权说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，许可见 [LICENSE](LICENSE)。
+[MIT](LICENSE)
