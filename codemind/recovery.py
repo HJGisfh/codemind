@@ -6,6 +6,8 @@ Handles:
 - max_tokens exceeded: escalate token limit + continuation prompt
 - prompt too long: reactive compact"""
 
+from codemind.execution import CURRENT_RUN
+
 import random
 import time
 
@@ -29,8 +31,11 @@ def retry_delay(attempt: int) -> float:
     return base + random.uniform(0, base * 0.25)
 
 
-def with_retry(fn, state: RecoveryState):
+def with_retry(fn, state: RecoveryState, control=None):
+    control = control or CURRENT_RUN.get()
     for attempt in range(MAX_RETRIES):
+        if control is not None:
+            control.before_model()
         try:
             result = fn()
             state.consecutive_529 = 0
@@ -42,7 +47,7 @@ def with_retry(fn, state: RecoveryState):
                 delay = retry_delay(attempt)
                 print(f"  \033[33m[429] retry {attempt + 1}/{MAX_RETRIES} "
                       f"after {delay:.1f}s\033[0m")
-                time.sleep(delay)
+                control.wait(delay) if control is not None else time.sleep(delay)
                 continue
             if "overloaded" in name or "529" in msg or "overloaded" in msg:
                 state.consecutive_529 += 1
@@ -53,7 +58,7 @@ def with_retry(fn, state: RecoveryState):
                 delay = retry_delay(attempt)
                 print(f"  \033[33m[529] retry {attempt + 1}/{MAX_RETRIES} "
                       f"after {delay:.1f}s\033[0m")
-                time.sleep(delay)
+                control.wait(delay) if control is not None else time.sleep(delay)
                 continue
             raise
     raise RuntimeError(f"Max retries ({MAX_RETRIES}) exceeded")

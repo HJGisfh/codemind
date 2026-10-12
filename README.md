@@ -1,8 +1,16 @@
-# CodeMind — 从零自建的 AI Coding Agent
+# CodeMind — 可控执行的 AI Coding Agent
 
-**一个有自己 IDE 的 AI 编程助手。** 不是 CLI 命令行工具，而是像 Trae/Cursor 一样的沉浸式编码体验。
+CodeMind 是一个使用 Python 构建的 AI 编程助手，集成工具调用、上下文管理、可控执行与 Monaco Web IDE。支持为运行设置调用预算、检测重复操作，并通过网页取消任务和查看终止原因。
 
-从零用 Python 构建 —— Agent Loop、工具调度、权限管线、记忆系统、多智能体协作，以及一个基于 Monaco 的 Web IDE。
+## 执行控制
+
+- **执行预算**：默认每轮前台运行最多 30 次模型调用（含显式重试及上下文摘要）、100 次工具调用、300 秒；可通过 `RunControl` 配置。
+- **重复结果检测**：连续相同工具、参数及结果，第 3 次提醒调整策略，第 4 次停止。内置邮箱/任务列表轮询豁免，可配置；结果发生变化会重置计数。
+- **协作式取消**：Web 停止请求传递到 Agent 循环；退避等待可立即唤醒，停止后不再发起下一次受控调用。运行中的网络请求/系统命令不会被强杀。
+- **运行结果**：返回终止原因、实际受控模型/工具调用次数和耗时，Web 状态接口保留最近一次结果。
+- **离线回归验证**：正常完成、预算耗尽、重复结果、摘要、重试、取消和 Web 状态测试。使用模拟模型响应，不消耗真实 API 额度。
+
+这些限制覆盖前台主循环及其摘要请求，不是整个进程的总费用限额；独立后台任务、Subagent/Teammate 内部调用不纳入本轮统计，也不会被级联强杀。详见 [执行控制与评测](docs/execution-control.md)。
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -43,7 +51,7 @@ DeepSeek API (api.deepseek.com/anthropic)
 | **文件操作** | bash 执行、读文件、写文件、编辑替换、glob 搜索 |
 | **任务管理** | todo_write 待办清单、Task 持久化任务图（带依赖关系） |
 | **智能体委托** | Subagent 子任务隔离执行、Teammate 自主后台协作者 |
-| **记忆系统** | 持久化 .memory/*.md 存储、LLM 驱动的相关性筛选 |
+| **记忆系统** | 文件记忆存储与索引注入；LLM 相关性筛选函数尚未接入主循环 |
 | **技能加载** | 按需加载 Skill 文件、系统提示词中注入目录 |
 | **上下文压缩** | 4 层管线：budget → snip → micro → summarize |
 | **容错恢复** | 429 重试、529 模型降级、max_tokens 升级、prompt-too-long 响应式压缩 |
@@ -57,7 +65,7 @@ DeepSeek API (api.deepseek.com/anthropic)
 ### Web IDE
 
 - **Monaco 编辑器**：VS Code 同款编辑引擎，语法高亮，多语言支持
-- **聊天面板**：WebSocket 实时对话，流式输出
+- **聊天面板**：WebSocket 消息推送（非逐 token 流式生成）
 - **文件树**：浏览工作区，点击打开文件，自动识别语言
 - **终端面板**：工具执行日志实时输出
 - **工作区切换**：支持原生文件夹选择器，随时切换项目
@@ -147,7 +155,7 @@ codemind/
 
 ## 关键设计决策
 
-**为什么不用 LangChain？** Agent Loop 核心只有 ~60 行 Python。加框架反而会隐藏控制流，使得 hooks、permission、compaction 这些模块难以独立理解和测试。**自己做一遍，才能真正理解 Agent 的原理。**
+**为什么使用显式 Agent Loop？** 将模型调用、工具执行、权限检查和上下文管理分开组织，便于检查控制流，并独立测试预算限制、重复检测和取消行为。
 
 **为什么选 DeepSeek？** DeepSeek 提供 Anthropic 兼容的 API 端点（`/anthropic`），可以直接用 Anthropic SDK，同时成本远低于 Claude。修改 `ANTHROPIC_BASE_URL` 和 `MODEL_ID` 两个环境变量就能切换到任何兼容服务。
 
@@ -155,6 +163,6 @@ codemind/
 
 **为什么文件即数据库？** Task、Memory、Cron Jobs、Transcripts 全都是文件。没有数据库依赖，用任何文本编辑器就能查看 Agent 状态，重启不丢数据。
 
-## License
+## 致谢与许可
 
-MIT
+Agent 基础实现参考并改编自 [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code)。来源与版权说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，许可见 [LICENSE](LICENSE)。

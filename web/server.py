@@ -7,6 +7,9 @@ Serves the Monaco-based IDE frontend and provides:
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import asdict
+
 import json
 import sys
 import threading
@@ -15,6 +18,7 @@ from pathlib import Path
 # Ensure codemind package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from codemind.execution import RunControl
 from codemind.context import (
     PROMPT, agent_lock, MODEL,
     CLI_ACTIVE, client,
@@ -58,14 +62,17 @@ def init_state():
 
 # ── REST API ──
 
-_stop_flag = False
+active_control: RunControl | None = None
+last_run: dict | None = None
 
 
 @app.get("/api/stop")
 async def api_stop():
-    global _stop_flag
-    _stop_flag = True
-    return {"status": "stopped"}
+    if active_control is None:
+        return {"status": "idle"}
+    active_control.cancel()
+    return {"status": "stopping"}
+
 
 
 @app.get("/api/status")
@@ -74,6 +81,9 @@ async def api_status():
         "model": MODEL,
         "workspace": str(ctx.WORKDIR),
         "message_count": len(history),
+        "running": active_control is not None,
+        "stopping": active_control is not None and active_control.cancel_event.is_set(),
+        "last_run": last_run,
     }
 
 
@@ -115,6 +125,8 @@ async def api_open_folder(path: str = ""):
     """Switch workspace to a new directory."""
     global history, context
 
+    if active_control is not None or agent_lock.locked():
+        raise HTTPException(409, "Stop the running agent before switching workspace")
     if not path:
         return {"error": "No path provided"}
 
@@ -197,93 +209,113 @@ async def api_write_file(path: str, content: str):
 
 @app.websocket("/ws")
 async def websocket_chat(ws: WebSocket):
-    global history, context
+    global history, context, active_control, last_run
     await ws.accept()
     init_state()
-
+    owned_control = None
     try:
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
             msg_type = msg.get("type", "message")
-
             if msg_type == "chat":
                 query = msg.get("content", "")
-                if not query.strip():
+                if not isinstance(query, str) or not query.strip():
                     continue
-
-                # Reset stop flag for new request
-                global _stop_flag
-                _stop_flag = False
-
-                # Notify client we're processing
-                await ws.send_json({"type": "status", "status": "thinking"})
-
-                trigger_hooks("UserPromptSubmit", query)
+                # The app is single-workspace: reject concurrent writers explicitly.
+                if active_control is not None or not agent_lock.acquire(blocking=False):
+                    await ws.send_json({"type": "error", "content": "An agent is already running. Wait for it to finish."})
+                    continue
+                run = RunControl()
+                active_control = owned_control = run
                 turn_start = len(history)
                 history.append({"role": "user", "content": query})
-
-                # Run agent loop in thread to not block WebSocket
-                result_container = {"done": False}
+                run_history = list(history)
+                result_container = {}
+                seen_messages = {id(item) for item in history[:turn_start]}
+                retained_messages = list(history[:turn_start])
 
                 def run_agent():
-                    with agent_lock:
-                        agent_loop(history, context)
-                        new_ctx = update_context(context, history)
-                        context.clear()
-                        context.update(new_ctx)
-                    result_container["done"] = True
+                    global active_control, last_run
+                    try:
+                        trigger_hooks("UserPromptSubmit", query)
+                        result = agent_loop(run_history, context, control=run)
+                        result_container["result"] = result
+                        last_run = asdict(result)
+                        inbox = consume_lead_inbox(route_protocol=True)
+                        if inbox:
+                            run_history.append({"role": "user", "content": "[Inbox] " + json.dumps(inbox)})
+                    except Exception as exc:
+                        run.stop("error")
+                        result_container["result"] = run.result()
+                        result_container["error"] = str(exc)
+                        last_run = asdict(result_container["result"])
+                    finally:
+                        # Capture this run before another client can mutate shared history.
+                        history[:] = run_history
+                        result_container["history"] = list(run_history)
+                        if active_control is run:
+                            active_control = None
+                        agent_lock.release()
 
                 thread = threading.Thread(target=run_agent, daemon=True)
                 thread.start()
+                await ws.send_json({"type": "status", "status": "thinking"})
+                stopping_sent = False
 
-                # Poll for completion and send updates
-                import time as _time
-                last_text = ""
-                while thread.is_alive():
-                    _time.sleep(0.1)
-                    if _stop_flag:
-                        await ws.send_json({"type": "status", "status": "stopped"})
-                        break
-                    # Check for new assistant messages
-                    for msg in history[turn_start:]:
-                        if msg.get("role") != "assistant":
+                async def send_new_messages():
+                    snapshot = result_container.get("history")
+                    if snapshot is None:
+                        snapshot = list(run_history)
+                    for item in snapshot:
+                        if id(item) in seen_messages:
                             continue
-                        content = msg.get("content", [])
-                        if isinstance(content, list):
-                            for block in content:
-                                if getattr(block, "type", None) == "text":
-                                    text = block.text
-                                    if text != last_text:
-                                        await ws.send_json({
-                                            "type": "text",
-                                            "content": text,
-                                        })
-                                        last_text = text
+                        seen_messages.add(id(item))
+                        retained_messages.append(item)
+                        if item.get("role") != "assistant":
+                            continue
+                        content = item.get("content", [])
+                        if isinstance(content, str):
+                            await ws.send_json({"type": "text", "content": content})
+                            continue
+                        for block in content:
+                            kind = block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
+                            if kind == "text":
+                                text = block["text"] if isinstance(block, dict) else block.text
+                                await ws.send_json({"type": "text", "content": text})
 
-                thread.join()
-
-                # Check inbox
-                inbox = consume_lead_inbox(route_protocol=True)
-                if inbox:
-                    inbox_text = "\n".join(
-                        f"From {m['from']}: {m['content'][:200]}" for m in inbox)
-                    history.append({"role": "user", "content": f"[Inbox]\n{inbox_text}"})
-
-                await ws.send_json({"type": "status", "status": "done"})
-
+                while thread.is_alive():
+                    if run.cancel_event.is_set() and not stopping_sent:
+                        stopping_sent = True
+                        await ws.send_json({"type": "status", "status": "stopping"})
+                    await send_new_messages()
+                    await asyncio.sleep(0.05)
+                # Also flush fast responses produced before the first polling iteration.
+                await send_new_messages()
+                result = result_container["result"]
+                if "error" in result_container:
+                    await ws.send_json({"type": "error", "content": result_container["error"]})
+                await ws.send_json({"type": "status",
+                                    "status": "done" if result.reason == "completed" else "stopped",
+                                    **asdict(result)})
+                owned_control = None
             elif msg_type == "clear":
+                if active_control is not None or agent_lock.locked():
+                    await ws.send_json({"type": "error", "content": "Stop the running agent before clearing history"})
+                    continue
                 history.clear()
                 context = update_context({}, [])
                 await ws.send_json({"type": "status", "status": "cleared"})
-
     except WebSocketDisconnect:
         pass
-    except Exception as e:
+    except Exception as exc:
         try:
-            await ws.send_json({"type": "error", "content": str(e)})
+            await ws.send_json({"type": "error", "content": str(exc)})
         except Exception:
             pass
+    finally:
+        if owned_control is not None:
+            owned_control.cancel()
 
 
 # ── Static files ──

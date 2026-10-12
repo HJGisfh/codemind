@@ -220,8 +220,12 @@ function initWebSocket() {
         } else if (msg.type === 'status') {
             if (msg.status === 'thinking') {
                 updateStatus('thinking', 'Thinking...');
+            } else if (msg.status === 'stopping') {
+                updateStatus('thinking', 'Stopping after current operation...');
             } else if (msg.status === 'done' || msg.status === 'stopped') {
-                updateStatus('idle', msg.status === 'stopped' ? 'Stopped' : 'Ready');
+                updateStatus('idle', msg.status === 'stopped' ? 'Stopped: ' + (msg.reason || 'cancelled') : 'Ready');
+                removeThinking();
+                if (msg.reason) terminalLog('Run: ' + msg.reason + ' | model calls: ' + msg.model_calls + ' | tool calls: ' + msg.tool_calls, 'info');
                 enableSend();
                 _lastAssistantDiv = null;
             } else if (msg.status === 'cleared') {
@@ -318,9 +322,20 @@ function enableSend() {
     $('#btn-stop').style.display = 'none';
 }
 
-function stopAgent() {
-    fetch('/api/stop');
-    enableSend();
+async function stopAgent() {
+    try {
+        const response = await fetch('/api/stop');
+        if (!response.ok) throw new Error('Stop request failed');
+        const result = await response.json();
+        if (result.status === 'stopping') {
+            updateStatus('thinking', 'Stopping after current operation...');
+        } else {
+            updateStatus('idle', 'Ready');
+            enableSend();
+        }
+    } catch (error) {
+        terminalLog(String(error), 'error');
+    }
 }
 
 // ── Utils ──

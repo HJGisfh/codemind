@@ -7,6 +7,9 @@ Layer 4 (L4): compact_history — model-powered summarization
 
 Runs BEFORE each LLM call. reactive_compact handles emergency prompt-too-long."""
 
+from codemind.execution import RunStopped
+from codemind.recovery import with_retry, RecoveryState
+
 import json
 import time
 from pathlib import Path
@@ -136,10 +139,11 @@ def summarize_history(messages: list) -> str:
     prompt = ("Summarize this coding-agent conversation so work can continue. "
               "Preserve current goal, key findings, changed files, remaining work, "
               "and user constraints.\n\n" + conversation)
-    response = client.messages.create(
-        model=MODEL,
+    state = RecoveryState()
+    response = with_retry(lambda: client.messages.create(
+        model=state.current_model,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=2000)
+        max_tokens=2000), state)
     return extract_text(response.content) or "(empty summary)"
 
 
@@ -160,6 +164,8 @@ def reactive_compact(messages: list) -> list:
         tail_start -= 1
     try:
         summary = summarize_history(messages[:tail_start])
+    except RunStopped:
+        raise
     except Exception:
         summary = "Earlier conversation was trimmed after a prompt-too-long error."
     return [{"role": "user", "content": f"[Reactive compact]\n\n{summary}"},
